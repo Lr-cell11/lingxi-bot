@@ -1,0 +1,296 @@
+--- git commit ---
+b4c321024792976150ca55fddb26fa34480d974e
+
+
+--- git status ---
+On branch main
+Your branch is up to date with 'origin/main'.
+
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/agents/rsl_rl_ppo_cfg.py
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/flat_env_cfg.py
+	modified:   source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/rough_env_cfg.py
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+	source/isaaclab_assets/data/Robots/
+	source/isaaclab_assets/isaaclab_assets/robots/agibot_x2.py
+	source/isaaclab_assets/isaaclab_assets/robots/lens.py
+	source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/x2/
+
+no changes added to commit (use "git add" and/or "git commit -a") 
+
+
+--- git diff ---
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/agents/rsl_rl_ppo_cfg.py b/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/agents/rsl_rl_ppo_cfg.py
+index 9777785..0d5de71 100644
+--- a/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/agents/rsl_rl_ppo_cfg.py
++++ b/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/agents/rsl_rl_ppo_cfg.py
+@@ -23,7 +23,7 @@ class UnitreeGo2RoughPPORunnerCfg(RslRlOnPolicyRunnerCfg):
+         activation="elu",
+     )
+     algorithm = RslRlPpoAlgorithmCfg(
+-        value_loss_coef=1.0,
++        value_loss_coef=1.0, 
+         use_clipped_value_loss=True,
+         clip_param=0.2,
+         entropy_coef=0.01,
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/flat_env_cfg.py b/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/flat_env_cfg.py
+index 8bf8bb1..d8e50f0 100644
+--- a/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/flat_env_cfg.py
++++ b/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/flat_env_cfg.py
+@@ -1,43 +1,109 @@
+-# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
++# Copyright (c) 2022-2025, The Isaac Lab Project Developers
+ # All rights reserved.
+ #
+ # SPDX-License-Identifier: BSD-3-Clause
+ 
++from isaaclab.managers import RewardTermCfg as RewTerm
++from isaaclab.managers import SceneEntityCfg
+ from isaaclab.utils import configclass
+ 
++import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
++
+ from .rough_env_cfg import UnitreeGo2RoughEnvCfg
+ 
+ 
+ @configclass
+ class UnitreeGo2FlatEnvCfg(UnitreeGo2RoughEnvCfg):
+     def __post_init__(self):
+-        # post init of parent
++        # Start from the Go2 rough-terrain locomotion defaults, then override the settings that are specific to
++        # flat-ground forward walking.
+         super().__post_init__()
+ 
+-        # override rewards
++        # Penalize non-level body orientation. A more negative weight makes the policy keep the base flatter.
+         self.rewards.flat_orientation_l2.weight = -2.5
++
++        # Apply the foot-air-time reward to all Go2 foot links.
++        self.rewards.feet_air_time.params["sensor_cfg"].body_names = ".*_foot"
++        # Reward longer swing phases. Increasing this can encourage clearer stepping but may reduce stability.
+         self.rewards.feet_air_time.weight = 0.25
+ 
+-        # change terrain to flat
++        # Penalize contacts on thigh and calf links so the policy avoids dragging legs on the ground.
++        self.rewards.undesired_contacts = RewTerm(
++            func=mdp.undesired_contacts,
++            # Negative reward weight applied when undesired contact force exceeds the threshold.
++            weight=-2.0,
++            params={
++                "sensor_cfg": SceneEntityCfg(
++                    # Read contact forces from the contact sensor configured in the scene.
++                    "contact_forces",
++                    # Match all thigh and calf bodies on the robot.
++                    body_names=[
++                        ".*_thigh",
++                        ".*_calf",
++                    ],
++                ),
++                # Contact force threshold used by mdp.undesired_contacts.
++                "threshold": 1.0,
++            },
++        )
++
++        # Terminate an episode if the base, thigh, or calf hits the ground.
++        self.terminations.base_contact.params["sensor_cfg"].body_names = [
++            "base",
++            ".*_thigh",
++            ".*_calf",
++        ]
++
++        # Scale policy actions before converting them to joint position targets.
++        # A smaller scale limits joint target changes and usually makes early training more stable.
++        self.actions.joint_pos.scale = 0.20
++
++        # Disable heading tracking. The policy only follows explicit x/y/yaw velocity commands below.
++        self.commands.base_velocity.heading_command = False
++        # Sample forward velocity commands in m/s. This trains the robot to walk forward between 0.20 and 0.80 m/s.
++        self.commands.base_velocity.ranges.lin_vel_x = (0.20, 0.80)
++        # Force lateral velocity command to zero, so the policy does not train side walking.
++        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
++        # Force yaw-rate command to zero, so the policy does not train turning.
++        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
++
++        # Replace the generated rough terrain with a flat plane for flat-ground training.
+         self.scene.terrain.terrain_type = "plane"
++        # Disable procedural terrain generation because a flat plane does not need a terrain generator.
+         self.scene.terrain.terrain_generator = None
+-        # no height scan
++
++        # Disable the height scanner sensor because flat terrain has no local height variations to observe.
+         self.scene.height_scanner = None
++        # Remove height-scan observations from the policy input to reduce observation dimension on flat terrain.
+         self.observations.policy.height_scan = None
+-        # no terrain curriculum
++
++        # Disable terrain-level curriculum because there is no generated terrain difficulty on a flat plane.
+         self.curriculum.terrain_levels = None
+ 
+ 
++@configclass
+ class UnitreeGo2FlatEnvCfg_PLAY(UnitreeGo2FlatEnvCfg):
+     def __post_init__(self) -> None:
+-        # post init of parent
++        # Start from the training flat-ground configuration, then override values for visualization/play.
+         super().__post_init__()
+ 
+-        # make a smaller scene for play
+-        self.scene.num_envs = 50
++        # Use a single environment for play to make visualization easier and reduce GPU/CPU load.
++        self.scene.num_envs = 1
++        # Set spacing between environments. It is mostly irrelevant when num_envs is 1.
+         self.scene.env_spacing = 2.5
+-        # disable randomization for play
++
++        # Disable observation noise/corruption for deterministic policy evaluation.
+         self.observations.policy.enable_corruption = False
+-        # remove random pushing event
++
++        # Disable random external disturbances during play so the robot behavior is easier to inspect.
+         self.events.base_external_force_torque = None
+         self.events.push_robot = None
++
++        # Do not randomly sample standing commands during play.
++        self.commands.base_velocity.rel_standing_envs = 0.0
++        # Use a fixed 0.5 m/s forward velocity command during play.
++        self.commands.base_velocity.ranges.lin_vel_x = (0.50, 0.50)
++        # Keep lateral velocity command fixed at zero during play.
++        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
++        # Keep yaw-rate command fixed at zero during play.
++        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+diff --git a/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/rough_env_cfg.py b/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/rough_env_cfg.py
+index 69e6add..6266204 100644
+--- a/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/rough_env_cfg.py
++++ b/source/isaaclab_tasks/isaaclab_tasks/manager_based/locomotion/velocity/config/go2/rough_env_cfg.py
+@@ -1,35 +1,42 @@
+-# Copyright (c) 2022-2026, The Isaac Lab Project Developers (https://github.com/isaac-sim/IsaacLab/blob/main/CONTRIBUTORS.md).
++# Copyright (c) 2022-2025, The Isaac Lab Project Developers
+ # All rights reserved.
+ #
+ # SPDX-License-Identifier: BSD-3-Clause
+ 
++from isaaclab.managers import RewardTermCfg as RewTerm
++from isaaclab.managers import SceneEntityCfg
+ from isaaclab.utils import configclass
+ 
++import isaaclab_tasks.manager_based.locomotion.velocity.mdp as mdp
+ from isaaclab_tasks.manager_based.locomotion.velocity.velocity_env_cfg import LocomotionVelocityRoughEnvCfg
+ 
+-##
+-# Pre-defined configs
+-##
+-from isaaclab_assets.robots.unitree import UNITREE_GO2_CFG  # isort: skip
++from isaaclab_assets.robots.unitree import UNITREE_GO2_CFG
+ 
+ 
+ @configclass
+ class UnitreeGo2RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
+     def __post_init__(self):
+-        # post init of parent
+         super().__post_init__()
+ 
++        # Robot.
+         self.scene.robot = UNITREE_GO2_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+         self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/base"
+-        # scale down the terrains because the robot is small
++
++        # Scale terrain for Go2.
+         self.scene.terrain.terrain_generator.sub_terrains["boxes"].grid_height_range = (0.025, 0.1)
+         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_range = (0.01, 0.06)
+         self.scene.terrain.terrain_generator.sub_terrains["random_rough"].noise_step = 0.01
+ 
+-        # reduce action scale
+-        self.actions.joint_pos.scale = 0.25
++        # Reduce joint target range.
++        self.actions.joint_pos.scale = 0.20
++
++        # Forward-only training.
++        self.commands.base_velocity.heading_command = False
++        self.commands.base_velocity.ranges.lin_vel_x = (0.20, 0.80)
++        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
++        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)
+ 
+-        # event
++        # Events.
+         self.events.push_robot = None
+         self.events.add_base_mass.params["mass_distribution_params"] = (-1.0, 3.0)
+         self.events.add_base_mass.params["asset_cfg"].body_names = "base"
+@@ -48,38 +55,62 @@ class UnitreeGo2RoughEnvCfg(LocomotionVelocityRoughEnvCfg):
+         }
+         self.events.base_com = None
+ 
+-        # rewards
++        # Rewards.
++        self.rewards.flat_orientation_l2.weight = -2.5
+         self.rewards.feet_air_time.params["sensor_cfg"].body_names = ".*_foot"
+-        self.rewards.feet_air_time.weight = 0.01
+-        self.rewards.undesired_contacts = None
++        self.rewards.feet_air_time.weight = 0.25
+         self.rewards.dof_torques_l2.weight = -0.0002
+         self.rewards.track_lin_vel_xy_exp.weight = 1.5
+         self.rewards.track_ang_vel_z_exp.weight = 0.75
+         self.rewards.dof_acc_l2.weight = -2.5e-7
+ 
+-        # terminations
+-        self.terminations.base_contact.params["sensor_cfg"].body_names = "base"
++        # Penalize thigh and calf contacts.
++        self.rewards.undesired_contacts = RewTerm(
++            func=mdp.undesired_contacts,
++            weight=-2.0,
++            params={
++                "sensor_cfg": SceneEntityCfg(
++                    "contact_forces",
++                    body_names=[
++                        ".*_thigh",
++                        ".*_calf",
++                    ],
++                ),
++                "threshold": 1.0,
++            },
++        )
++
++        # Terminate if base, thigh, or calf touches the ground.
++        self.terminations.base_contact.params["sensor_cfg"].body_names = [
++            "base",
++            ".*_thigh",
++            ".*_calf",
++        ]
+ 
+ 
+ @configclass
+ class UnitreeGo2RoughEnvCfg_PLAY(UnitreeGo2RoughEnvCfg):
+     def __post_init__(self):
+-        # post init of parent
+         super().__post_init__()
+ 
+-        # make a smaller scene for play
+-        self.scene.num_envs = 50
++        # Use one environment for play.
++        self.scene.num_envs = 1
+         self.scene.env_spacing = 2.5
+-        # spawn the robot randomly in the grid (instead of their terrain levels)
++
++        # Reduce terrain size for play.
+         self.scene.terrain.max_init_terrain_level = None
+-        # reduce the number of terrains to save memory
+         if self.scene.terrain.terrain_generator is not None:
+             self.scene.terrain.terrain_generator.num_rows = 5
+             self.scene.terrain.terrain_generator.num_cols = 5
+             self.scene.terrain.terrain_generator.curriculum = False
+ 
+-        # disable randomization for play
++        # Disable noise and disturbances.
+         self.observations.policy.enable_corruption = False
+-        # remove random pushing event
+         self.events.base_external_force_torque = None
+         self.events.push_robot = None
++
++        # Fixed forward command during play.
++        self.commands.base_velocity.rel_standing_envs = 0.0
++        self.commands.base_velocity.ranges.lin_vel_x = (0.50, 0.50)
++        self.commands.base_velocity.ranges.lin_vel_y = (0.0, 0.0)
++        self.commands.base_velocity.ranges.ang_vel_z = (0.0, 0.0)

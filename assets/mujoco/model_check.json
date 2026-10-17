@@ -1,0 +1,148 @@
+{
+  "mujoco_version": "3.10.0",
+  "removed_joints": [
+    "waist_yaw_joint",
+    "waist_pitch_joint",
+    "waist_roll_joint",
+    "left_shoulder_pitch_joint",
+    "left_shoulder_roll_joint",
+    "left_shoulder_yaw_joint",
+    "left_elbow_joint",
+    "left_wrist_yaw_joint",
+    "left_wrist_pitch_joint",
+    "left_wrist_roll_joint",
+    "right_shoulder_pitch_joint",
+    "right_shoulder_roll_joint",
+    "right_shoulder_yaw_joint",
+    "right_elbow_joint",
+    "right_wrist_yaw_joint",
+    "right_wrist_pitch_joint",
+    "right_wrist_roll_joint",
+    "head_yaw_joint",
+    "head_pitch_joint"
+  ],
+  "nq": 19,
+  "nv": 18,
+  "nu": 12,
+  "physics_dt": 0.005,
+  "total_mass": 44.801,
+  "welded_root_mass": 26.700999999999993,
+  "welded_root_com_b": [
+    0.00013845740219467395,
+    0.0003156087435406102,
+    0.2546862428584783
+  ],
+  "com_difference_meters": [
+    1.0365190085089623e-09,
+    -5.2769473155012386e-08,
+    -2.3325374853833125e-08
+  ],
+  "mapping": [
+    {
+      "policy_index": 0,
+      "joint": "left_hip_pitch_joint",
+      "qpos_addr": 7,
+      "qvel_addr": 6,
+      "actuator_id": 0,
+      "default_pos": -0.2
+    },
+    {
+      "policy_index": 1,
+      "joint": "right_hip_pitch_joint",
+      "qpos_addr": 13,
+      "qvel_addr": 12,
+      "actuator_id": 6,
+      "default_pos": -0.2
+    },
+    {
+      "policy_index": 2,
+      "joint": "left_hip_roll_joint",
+      "qpos_addr": 8,
+      "qvel_addr": 7,
+      "actuator_id": 1,
+      "default_pos": 0.0
+    },
+    {
+      "policy_index": 3,
+      "joint": "right_hip_roll_joint",
+      "qpos_addr": 14,
+      "qvel_addr": 13,
+      "actuator_id": 7,
+      "default_pos": 0.0
+    },
+    {
+      "policy_index": 4,
+      "joint": "left_hip_yaw_joint",
+      "qpos_addr": 9,
+      "qvel_addr": 8,
+      "actuator_id": 2,
+      "default_pos": 0.0
+    },
+    {
+      "policy_index": 5,
+      "joint": "right_hip_yaw_joint",
+      "qpos_addr": 15,
+      "qvel_addr": 14,
+      "actuator_id": 8,
+      "default_pos": 0.0
+    },
+    {
+      "policy_index": 6,
+      "joint": "left_knee_joint",
+      "qpos_addr": 10,
+      "qvel_addr": 9,
+      "actuator_id": 3,
+      "default_pos": 0.42
+    },
+    {
+      "policy_index": 7,
+      "joint": "right_knee_joint",
+      "qpos_addr": 16,
+      "qvel_addr": 15,
+      "actuator_id": 9,
+      "default_pos": 0.42
+    },
+    {
+      "policy_index": 8,
+      "joint": "left_ankle_pitch_joint",
+      "qpos_addr": 11,
+      "qvel_addr": 10,
+      "actuator_id": 4,
+      "default_pos": -0.23
+    },
+    {
+      "policy_index": 9,
+      "joint": "right_ankle_pitch_joint",
+      "qpos_addr": 17,
+      "qvel_addr": 16,
+      "actuator_id": 10,
+      "default_pos": -0.23
+    },
+    {
+      "policy_index": 10,
+      "joint": "left_ankle_roll_joint",
+      "qpos_addr": 12,
+      "qvel_addr": 11,
+      "actuator_id": 5,
+      "default_pos": 0.0
+    },
+    {
+      "policy_index": 11,
+      "joint": "right_ankle_roll_joint",
+      "qpos_addr": 18,
+      "qvel_addr": 17,
+      "actuator_id": 11,
+      "default_pos": 0.0
+    }
+  ],
+  "source_sha256": "20119fc61f43812daf2e72182a5c9e3b255f274e2e8da4c91c429f203093b292",
+  "simulation_time": 0.0,
+  "pending": [
+    "Friction calibration",
+    "ONNX interface check",
+    "Observation unit tests",
+    "DCMotor implementation",
+    "Policy rollout"
+  ],
+  "saved_scene_verified": true
+}
