@@ -1,0 +1,1 @@
+assets/usd/configuration/*_base.usd filter=lfs diff=lfs merge=lfs -text
